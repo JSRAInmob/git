@@ -33,6 +33,8 @@
 
 import struct
 import sys
+from security import safe_command
+
 if sys.version_info.major < 3 and sys.version_info.minor < 7:
     sys.stderr.write("git-p4: requires Python 2.7 or later.\n")
     sys.exit(1)
@@ -322,14 +324,14 @@ def run_git_hook(cmd, param=[]):
         args.append("--")
         for p in param:
             args.append(p)
-    return subprocess.call(args) == 0
+    return safe_command.run(subprocess.call, args) == 0
 
 
 def write_pipe(c, stdin, *k, **kw):
     if verbose:
         sys.stderr.write('Writing pipe: {}\n'.format(' '.join(c)))
 
-    p = subprocess.Popen(c, stdin=subprocess.PIPE, *k, **kw)
+    p = safe_command.run(subprocess.Popen, c, stdin=subprocess.PIPE, *k, **kw)
     pipe = p.stdin
     val = pipe.write(stdin)
     pipe.close()
@@ -353,8 +355,7 @@ def read_pipe_full(c, *k, **kw):
     if verbose:
         sys.stderr.write('Reading pipe: {}\n'.format(' '.join(c)))
 
-    p = subprocess.Popen(
-        c, stdout=subprocess.PIPE, stderr=subprocess.PIPE, *k, **kw)
+    p = safe_command.run(subprocess.Popen, c, stdout=subprocess.PIPE, stderr=subprocess.PIPE, *k, **kw)
     out, err = p.communicate()
     return (p.returncode, out, decode_text_stream(err))
 
@@ -397,7 +398,7 @@ def read_pipe_lines(c, raw=False, *k, **kw):
     if verbose:
         sys.stderr.write('Reading pipe: {}\n'.format(' '.join(c)))
 
-    p = subprocess.Popen(c, stdout=subprocess.PIPE, *k, **kw)
+    p = safe_command.run(subprocess.Popen, c, stdout=subprocess.PIPE, *k, **kw)
     pipe = p.stdout
     lines = pipe.readlines()
     if not raw:
@@ -418,7 +419,7 @@ def p4_has_command(cmd):
        does not exist in this version of p4.
        """
     real_cmd = p4_build_cmd(["help", cmd])
-    p = subprocess.Popen(real_cmd, stdout=subprocess.PIPE,
+    p = safe_command.run(subprocess.Popen, real_cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
     p.communicate()
     return p.returncode == 0
@@ -434,7 +435,7 @@ def p4_has_move_command():
     if not p4_has_command("move"):
         return False
     cmd = p4_build_cmd(["move", "-k", "@from", "@to"])
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = safe_command.run(subprocess.Popen, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = p.communicate()
     err = decode_text_stream(err)
     # return code will be 1 in either case
@@ -450,7 +451,7 @@ def system(cmd, ignore_error=False, *k, **kw):
     if verbose:
         sys.stderr.write("executing {}\n".format(
             ' '.join(cmd) if isinstance(cmd, list) else cmd))
-    retcode = subprocess.call(cmd, *k, **kw)
+    retcode = safe_command.run(subprocess.call, cmd, *k, **kw)
     if retcode and not ignore_error:
         raise subprocess.CalledProcessError(retcode, cmd)
 
@@ -460,7 +461,7 @@ def system(cmd, ignore_error=False, *k, **kw):
 def p4_system(cmd, *k, **kw):
     """Specifically invoke p4 as the system command."""
     real_cmd = p4_build_cmd(cmd)
-    retcode = subprocess.call(real_cmd, *k, **kw)
+    retcode = safe_command.run(subprocess.call, real_cmd, *k, **kw)
     if retcode:
         raise subprocess.CalledProcessError(retcode, real_cmd)
 
@@ -880,8 +881,7 @@ def p4CmdList(cmd, stdin=None, stdin_mode='w+b', cb=None, skip_info=False,
         stdin_file.flush()
         stdin_file.seek(0)
 
-    p4 = subprocess.Popen(
-        cmd, stdin=stdin_file, stdout=subprocess.PIPE, *k, **kw)
+    p4 = safe_command.run(subprocess.Popen, cmd, stdin=stdin_file, stdout=subprocess.PIPE, *k, **kw)
 
     result = []
     try:
@@ -1168,7 +1168,7 @@ def branch_exists(branch):
     """Make sure that the given ref name really exists."""
 
     cmd = ["git", "rev-parse", "--symbolic", "--verify", branch]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = safe_command.run(subprocess.Popen, cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, _ = p.communicate()
     out = decode_text_stream(out)
     if p.returncode:
@@ -4360,7 +4360,7 @@ class P4Clone(P4Sync):
         init_cmd = ["git", "init"]
         if self.cloneBare:
             init_cmd.append("--bare")
-        retcode = subprocess.call(init_cmd)
+        retcode = safe_command.run(subprocess.call, init_cmd)
         if retcode:
             raise subprocess.CalledProcessError(retcode, init_cmd)
 
