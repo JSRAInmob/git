@@ -9,6 +9,7 @@
 from __future__ import with_statement
 from string import Template
 import re, fnmatch, os, sys, codecs, pickle
+import fickling
 
 class Module(object):
     class Template(object):
@@ -178,7 +179,7 @@ class TestSuite(object):
 
         try:
             fp = open(path, 'rb')
-            cache = pickle.load(fp)
+            cache = fickling.load(fp)
             fp.close()
         except (IOError, ValueError):
             pass
